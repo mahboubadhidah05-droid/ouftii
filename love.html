@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>I Love You Oufti ❤</title>
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { background: #000; overflow: hidden; height: 100%; }
+  body { animation: fadeIn 1.2s ease; cursor: pointer; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<script>
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+  const FONT = '"Segoe Script", "Brush Script MT", "Lucida Handwriting", cursive';
+  const COLORS = ["#ff1a40", "#ff1a40", "#ff4d6d", "#ff8fa3", "#ffd6e0", "#ffffff"];
+
+  let W, H, groups, stars, floaters, bursts, heart, t0, lastFloat;
+
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const easeOut = t => 1 - Math.pow(1 - t, 3);
+  const clamp01 = t => Math.max(0, Math.min(1, t));
+
+  function heartXY(t) {
+    return {
+      x: 16 * Math.pow(Math.sin(t), 3),
+      y: -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t))
+    };
+  }
+
+  function fitFont(text, size) {
+    ctx.font = `${size}px ${FONT}`;
+    const w = ctx.measureText(text).width;
+    return w > W * 0.9 ? size * (W * 0.9) / w : size;
+  }
+
+  function makeParticle(tx, ty, delay) {
+    return {
+      tx, ty,
+      sx: rand(-100, W + 100),
+      sy: rand(-100, H + 100),
+      delay,
+      dur: rand(1400, 2300),
+      r: rand(1, 2.6),
+      color: COLORS[(Math.random() * COLORS.length) | 0],
+      ph: rand(0, Math.PI * 2),
+      swirl: rand(20, 80),
+      glint: Math.random() < 0.05
+    };
+  }
+
+  function textGroup(text, size, x, y, start) {
+    const off = document.createElement("canvas");
+    off.width = W; off.height = H;
+    const o = off.getContext("2d");
+    o.font = `${size}px ${FONT}`;
+    o.textAlign = "center";
+    o.textBaseline = "middle";
+    o.fillStyle = "#fff";
+    o.fillText(text, x, y);
+
+    const y0 = Math.max(0, Math.floor(y - size)), y1 = Math.min(H, Math.ceil(y + size));
+    const data = o.getImageData(0, y0, W, y1 - y0).data;
+    const gap = Math.max(3, Math.round(size / 16));
+    const pts = [];
+    for (let yy = 0; yy < y1 - y0; yy += gap)
+      for (let xx = 0; xx < W; xx += gap)
+        if (data[(yy * W + xx) * 4 + 3] > 128) pts.push({ x: xx, y: yy + y0 });
+
+    const minX = Math.min(...pts.map(p => p.x)), maxX = Math.max(...pts.map(p => p.x));
+    const particles = pts.map(p =>
+      makeParticle(p.x, p.y, start + ((p.x - minX) / (maxX - minX || 1)) * 1600));
+
+    return { type: "text", text, size, x, y, particles, reveal: start + 3200 };
+  }
+
+  function heartGroup(start) {
+    const particles = [];
+    for (let i = 0; i < 700; i++) {
+      const p = heartXY(rand(0, Math.PI * 2));
+      const k = i < 450 ? 1 : Math.sqrt(Math.random()) * 0.95;
+      const part = makeParticle(0, 0, start + rand(0, 1200));
+      part.hx = p.x * k; part.hy = p.y * k;
+      particles.push(part);
+    }
+    return { type: "heart", particles, reveal: start + 3000 };
+  }
+
+  function setup() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    canvas.style.width = W + "px"; canvas.style.height = H + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    stars = Array.from({ length: 160 }, () => ({
+      x: rand(0, W), y: rand(0, H), r: rand(0.3, 1.5), ph: rand(0, 6.28), sp: rand(0.5, 2)
+    }));
+    floaters = []; bursts = []; lastFloat = 0;
+
+    heart = { x: W / 2, y: H * 0.29, s: Math.min(W / 45, H / 68) };
+    const f1 = fitFont("I Love You Oufti ❤", Math.min(W / 9, 80));
+    const f2 = fitFont("I'm always here for you", Math.min(W / 15, 48));
+    const line1 = H * 0.66;
+
+    groups = [
+      textGroup("I Love You Oufti ❤", f1, W / 2, line1, 800),
+      textGroup("I'm always here for you", f2, W / 2, line1 + f1 * 1.15, 4800),
+      heartGroup(8800)
+    ];
+    t0 = null;
+  }
+
+  function drawSparkle(x, y, size, alpha, color) {
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x - size, y); ctx.lineTo(x + size, y);
+    ctx.moveTo(x, y - size); ctx.lineTo(x, y + size);
+    ctx.stroke();
+  }
+
+  function drawParticle(p, el, tx, ty, dim) {
+    const prog = (el - p.delay) / p.dur;
+    if (prog < 0) return;
+    const e = prog >= 1 ? 1 : easeOut(prog);
+    const sw = (1 - e) * p.swirl;
+    const x = p.sx + (tx - p.sx) * e + Math.sin(prog * 6 + p.ph) * sw;
+    const y = p.sy + (ty - p.sy) * e + Math.cos(prog * 6 + p.ph) * sw;
+    const tw = 0.55 + 0.45 * Math.sin(el / 180 + p.ph);
+    const a = (prog < 1 ? Math.min(1, prog * 3) : tw) * dim;
+
+    ctx.globalAlpha = a;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(x - p.r / 2, y - p.r / 2, p.r, p.r);
+    if (p.glint) drawSparkle(x, y, 5 * tw + 2, a, "#fff");
+  }
+
+  function heartPath(scale) {
+    ctx.beginPath();
+    for (let t = 0; t <= Math.PI * 2 + 0.01; t += 0.05) {
+      const p = heartXY(t);
+      const x = heart.x + p.x * scale, y = heart.y + p.y * scale;
+      t === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  }
+
+  function frame(now) {
+    if (t0 === null) t0 = now;
+    const el = now - t0;
+
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = "#fff";
+    for (const s of stars) {
+      ctx.globalAlpha = 0.15 + 0.6 * Math.abs(Math.sin(el / 1000 * s.sp + s.ph));
+      ctx.fillRect(s.x, s.y, s.r, s.r);
+    }
+
+    const beat = 1 + 0.07 * Math.pow(Math.sin(el / 380), 6);
+
+    for (const g of groups) {
+      const r = clamp01((el - g.reveal) / 1400);
+      const dim = 1 - 0.65 * r;
+
+      if (g.type === "heart") {
+        if (r > 0) {
+          ctx.globalCompositeOperation = "source-over";
+          const grad = ctx.createRadialGradient(heart.x, heart.y, 0, heart.x, heart.y, heart.s * 18);
+          grad.addColorStop(0, "#ff4d6d");
+          grad.addColorStop(1, "#b0001e");
+          ctx.globalAlpha = r * 0.9;
+          ctx.shadowColor = "#ff0033";
+          ctx.shadowBlur = 50;
+          ctx.fillStyle = grad;
+          heartPath(heart.s * beat * 0.96);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+        ctx.globalCompositeOperation = "lighter";
+        for (const p of g.particles)
+          drawParticle(p, el, heart.x + p.hx * heart.s * beat, heart.y + p.hy * heart.s * beat, 1 - 0.4 * r);
+      } else {
+        ctx.globalCompositeOperation = "lighter";
+        for (const p of g.particles) drawParticle(p, el, p.tx, p.ty, dim);
+
+        if (r > 0) {
+          ctx.globalCompositeOperation = "source-over";
+          const sc = 1.15 - 0.15 * easeOut(r);
+          ctx.save();
+          ctx.translate(g.x, g.y);
+          ctx.scale(sc, sc);
+          ctx.globalAlpha = r;
+          ctx.font = `${g.size}px ${FONT}`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.shadowColor = "#ff0033";
+          ctx.shadowBlur = 15 + 15 * Math.sin(el / 500) ** 2;
+          ctx.fillStyle = "#ff2a4f";
+          ctx.fillText(g.text, 0, 0);
+          ctx.restore();
+        }
+      }
+    }
+
+    if (el > 12000 && now - lastFloat > 350) {
+      lastFloat = now;
+      floaters.push({ x: rand(0, W), y: H + 30, s: rand(10, 26), v: rand(0.6, 1.6), ph: rand(0, 6.28) });
+    }
+    ctx.globalCompositeOperation = "source-over";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ff1a40";
+    ctx.shadowColor = "#ff0033";
+    ctx.shadowBlur = 10;
+    floaters = floaters.filter(f => f.y > -40);
+    for (const f of floaters) {
+      f.y -= f.v;
+      ctx.globalAlpha = Math.min(1, f.y / H) * 0.7;
+      ctx.font = `${f.s}px sans-serif`;
+      ctx.fillText("❤", f.x + Math.sin(f.y / 40 + f.ph) * 15, f.y);
+    }
+    ctx.shadowBlur = 0;
+
+    ctx.globalCompositeOperation = "lighter";
+    bursts = bursts.filter(b => b.life > 0);
+    for (const b of bursts) {
+      b.x += b.vx; b.y += b.vy; b.vy += 0.03; b.life -= 0.015;
+      drawSparkle(b.x, b.y, 3, b.life, b.color);
+      ctx.fillStyle = b.color;
+      ctx.fillRect(b.x - 1, b.y - 1, 2, 2);
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener("click", e => {
+    for (let i = 0; i < 40; i++) {
+      const a = rand(0, Math.PI * 2), sp = rand(1, 4);
+      bursts.push({ x: e.clientX, y: e.clientY, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                    life: 1, color: COLORS[(Math.random() * COLORS.length) | 0] });
+    }
+  });
+
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(setup, 300);
+  });
+
+  setup();
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>

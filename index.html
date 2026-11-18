@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A letter for Oufti 💌</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    height: 100vh;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe Script", "Brush Script MT", cursive;
+    overflow: hidden;
+    transition: opacity 0.8s;
+  }
+  body.fade { opacity: 0; }
+
+  .wrapper {
+    perspective: 1000px;
+    cursor: pointer;
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-15px); }
+  }
+
+  .envelope {
+    position: relative;
+    width: 320px;
+    height: 210px;
+    background: #a00018;
+    box-shadow: 0 0 50px #ff003366;
+  }
+
+  .letter {
+    position: absolute;
+    left: 15px; right: 15px; top: 10px;
+    height: 190px;
+    background: #fff0f3;
+    border-radius: 4px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #e60026;
+    font-size: 1.6rem;
+    text-align: center;
+    transition: transform 0.9s ease 0.5s;
+  }
+
+  .pocket {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: #d9002a;
+    clip-path: polygon(0 0, 50% 55%, 100% 0, 100% 100%, 0 100%);
+  }
+
+  .flap {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 60%;
+    background: #ff1a3c;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    transform-origin: top;
+    z-index: 3;
+    transition: transform 0.6s ease, z-index 0s 0.3s;
+  }
+
+  .seal {
+    position: absolute;
+    top: 42%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2.4rem;
+    z-index: 4;
+    color: #fff;
+    text-shadow: 0 0 15px #ff0033;
+    transition: opacity 0.3s;
+  }
+
+  .open .flap   { transform: rotateX(180deg); z-index: 0; }
+  .open .seal   { opacity: 0; }
+  .open .letter { transform: translateY(-130px); }
+  .open         { animation: none; }
+
+  .hint {
+    margin-top: 50px;
+    color: #ff1a40;
+    font-size: 1.5rem;
+    text-shadow: 0 0 10px #ff0033;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50%      { opacity: 1;   transform: scale(1.08); }
+  }
+</style>
+</head>
+<body>
+
+  <div class="wrapper" id="wrapper">
+    <div class="envelope">
+      <div class="letter">For you,<br>Oufti ❤</div>
+      <div class="pocket"></div>
+      <div class="flap"></div>
+      <div class="seal">❤</div>
+    </div>
+  </div>
+  <p class="hint" id="hint">Click to open 💌</p>
+
+<script>
+  const wrapper = document.getElementById("wrapper");
+  let opened = false;
+
+  wrapper.addEventListener("click", () => {
+    if (opened) return;
+    opened = true;
+    wrapper.classList.add("open");
+    document.getElementById("hint").style.visibility = "hidden";
+
+    setTimeout(() => document.body.classList.add("fade"), 2000);
+    setTimeout(() => { window.location.href = "love.html"; }, 2800);
+  });
+</script>
+</body>
+</html>
